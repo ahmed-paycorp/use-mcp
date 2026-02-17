@@ -5,11 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port=5001",
-    "build": "tsc -b && pnpm run build:only",
+    "build": "tsc -b && npm run build:only",
     "build:only": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "deploy": "pnpm run build:only && wrangler deploy"
+    "deploy": "npm run build:only && wrangler deploy"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.0.14",
@@ -33,9 +33,8 @@
     "prettier": "^3.5.3",
     "typescript": "~5.7.2",
     "typescript-eslint": "^8.24.1",
-    "use-mcp": "link:../..",
+    "use-mcp": "*",
     "vite": "^6.2.0",
     "wrangler": "^4.19.1"
-  },
-  "packageManager": "pnpm@10.11.0+sha512.6540583f41cc5f628eb3d9773ecee802f4f9ef9923cc45b69890fb47991d4b092964694ec3a4f738a420c918a333062c8b925d312f42e4f0c263eb603551f977"
+  }
 }

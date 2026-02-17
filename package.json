@@ -8,6 +8,10 @@
     "README.md",
     "LICENSE"
   ],
+  "workspaces": [
+    "examples/*",
+    "examples/servers/*"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -21,9 +25,10 @@
     }
   },
   "scripts": {
-    "install:all": "concurrently 'pnpm install' 'cd examples/chat-ui && pnpm install' 'cd examples/inspector && pnpm install' 'cd examples/servers/hono-mcp && pnpm install' 'cd examples/servers/cf-agents && pnpm install'",
-    "dev": "concurrently 'pnpm:build:watch' 'cd examples/chat-ui && pnpm dev' 'cd examples/inspector && pnpm dev' 'sleep 1 && cd examples/servers/hono-mcp && pnpm dev' 'sleep 2 && cd examples/servers/cf-agents && pnpm dev'",
-    "deploy:all": "concurrently 'pnpm build:site && pnpm deploy:site' 'cd examples/chat-ui && pnpm run deploy' 'cd examples/inspector && pnpm run deploy'",
+    "install:all": "concurrently 'npm install' 'cd examples/chat-ui && npm install' 'cd examples/inspector && npm install' 'cd examples/servers/hono-mcp && npm install' 'cd examples/servers/cf-agents && npm install'",
+    "dev": "concurrently 'npm run build:watch' 'cd examples/chat-ui && npm run dev' 'cd examples/inspector && npm run dev' 'sleep 1 && cd examples/servers/hono-mcp && npm run dev' 'sleep 2 && cd examples/servers/cf-agents && npm run dev'",
+    "dev:ui": "concurrently 'npm run build:watch' 'cd examples/chat-ui && npm run dev' 'cd examples/inspector && npm run dev'",
+    "deploy:all": "concurrently 'npm run build:site && npm run deploy:site' 'cd examples/chat-ui && npm run deploy' 'cd examples/inspector && npm run deploy'",
     "build:watch": "tsup --watch",
     "build": "tsup",
     "check": "prettier --check . && tsc",
@@ -35,7 +40,8 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.13.3",
-    "strict-url-sanitise": "^0.0.1"
+    "strict-url-sanitise": "^0.0.1",
+    "use-mcp": "^0.0.21"
   },
   "devDependencies": {
     "@axodotdev/oranda": "^0.6.5",
@@ -64,6 +70,5 @@
       "react",
       "@modelcontextprotocol/sdk"
     ]
-  },
-  "packageManager": "pnpm@10.11.0+sha512.6540583f41cc5f628eb3d9773ecee802f4f9ef9923cc45b69890fb47991d4b092964694ec3a4f738a420c918a333062c8b925d312f42e4f0c263eb603551f977"
+  }
 }

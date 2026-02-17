@@ -218,14 +218,43 @@ app.post('/authorize', async (c) => {
 
 export default {
   fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    // Handle CORS preflight requests
+    if (request.method === 'OPTIONS') {
+      return new Response(null, {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization, mcp-session-id, mcp-protocol-version',
+          'Access-Control-Max-Age': '86400',
+        },
+      })
+    }
+
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Expose-Headers': '*',
+    }
+
+    const addCors = (response: Response) => {
+      const newHeaders = new Headers(response.headers)
+      Object.entries(corsHeaders).forEach(([key, value]) => {
+        newHeaders.set(key, value)
+      })
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: newHeaders,
+      })
+    }
+
     const url = new URL(request.url)
 
     if (url.pathname === '/public/sse' || url.pathname === '/public/sse/message') {
-      return MyMCP.serveSSE('/public/sse').fetch(request, env, ctx)
+      return MyMCP.serveSSE('/public/sse').fetch(request, env, ctx).then(addCors)
     }
 
     if (url.pathname === '/public/mcp') {
-      return MyMCP.serve('/public/mcp').fetch(request, env, ctx)
+      return MyMCP.serve('/public/mcp').fetch(request, env, ctx).then(addCors)
     }
 
     return new OAuthProvider({
@@ -234,9 +263,9 @@ export default {
         // @ts-ignore
         fetch: (request, env, ctx) => {
           const { pathname } = new URL(request.url)
-          if (pathname.startsWith('/sse')) return MyMCP.serveSSE('/sse').fetch(request as any, env, ctx)
-          if (pathname === '/mcp') return MyMCP.serve('/mcp').fetch(request as any, env, ctx)
-          return new Response('Not found', { status: 404 })
+          if (pathname.startsWith('/sse')) return MyMCP.serveSSE('/sse').fetch(request as any, env, ctx).then(addCors)
+          if (pathname === '/mcp') return MyMCP.serve('/mcp').fetch(request as any, env, ctx).then(addCors)
+          return new Response('Not found', { status: 404, headers: corsHeaders })
         },
       },
       // @ts-ignore

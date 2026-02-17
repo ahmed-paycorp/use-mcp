@@ -211,7 +211,46 @@ export function useMcp(options: UseMcpOptions): UseMcpResult {
           transportRef.current = null
         }
 
-        const commonOptions: SSEClientTransportOptions = {
+        // Sanitize the URL to prevent XSS attacks from malicious server URLs
+        const sanitizedUrl = sanitizeUrl(url)
+        const targetUrl = new URL(sanitizedUrl)
+
+        // Session ID management for this connection attempt
+        let currentSessionId: string | null = null
+
+        // Custom fetch to handle session ID via headers
+        const customFetch: typeof fetch = async (input, init) => {
+          // Prepare headers
+          const headers = new Headers(init?.headers)
+
+          // Inject session ID if available
+          if (currentSessionId) {
+            headers.set('mcp-session-id', currentSessionId)
+          }
+
+          // Handle input being a Request object or URL/string
+          let requestInput = input
+          let requestInit = { ...init, headers }
+
+          if (input instanceof Request) {
+            // Clone the request to modify headers
+            requestInput = new Request(input, {
+              headers
+            })
+          }
+
+          const response = await fetch(requestInput, requestInit)
+
+          // Capture session ID from response headers
+          const sessionIdHeader = response.headers.get('mcp-session-id')
+          if (sessionIdHeader) {
+            currentSessionId = sessionIdHeader
+          }
+
+          return response
+        }
+
+        const commonOptions: any = {
           authProvider: authProviderRef.current,
           requestInit: {
             headers: {
@@ -219,10 +258,8 @@ export function useMcp(options: UseMcpOptions): UseMcpResult {
               ...customHeaders,
             },
           },
+          fetch: customFetch,
         }
-        // Sanitize the URL to prevent XSS attacks from malicious server URLs
-        const sanitizedUrl = sanitizeUrl(url)
-        const targetUrl = new URL(sanitizedUrl)
 
         addLog('debug', `Creating ${transportType.toUpperCase()} transport for URL: ${targetUrl.toString()}`)
         addLog('debug', `Transport options:`, {

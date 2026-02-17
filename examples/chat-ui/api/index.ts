@@ -13,7 +13,20 @@ type message = {
   content: string
 }
 
+import { cors } from 'hono/cors'
+
 const app = new Hono<{ Bindings: Env }>()
+
+app.use(
+  '/*',
+  cors({
+    origin: '*',
+    allowHeaders: ['X-Custom-Header', 'Upgrade-Insecure-Requests', 'Content-Type', 'mcpsessionid'], // Add headers used by client
+    exposeHeaders: ['Content-Length', 'X-Kuma-Revision'],
+    maxAge: 600,
+    credentials: true,
+  }),
+)
 
 // Handle the /api/chat endpoint
 app.post('/api/chat', async (c) => {
@@ -25,50 +38,50 @@ app.post('/api/chat', async (c) => {
     // Choose model based on reasoning preference
     const model = reasoning
       ? wrapLanguageModel({
-          model: workersai('@cf/deepseek-ai/deepseek-r1-distill-qwen-32b'),
-          middleware: [
-            extractReasoningMiddleware({ tagName: 'think' }),
-            //custom middleware to inject <think> tag at the beginning of a reasoning if it is missing
-            {
-              wrapGenerate: async ({ doGenerate }) => {
-                const result = await doGenerate()
+        model: workersai('@cf/deepseek-ai/deepseek-r1-distill-qwen-32b'),
+        middleware: [
+          extractReasoningMiddleware({ tagName: 'think' }),
+          //custom middleware to inject <think> tag at the beginning of a reasoning if it is missing
+          {
+            wrapGenerate: async ({ doGenerate }) => {
+              const result = await doGenerate()
 
-                if (!result.text?.includes('<think>')) {
-                  result.text = `<think>${result.text}`
-                }
+              if (!result.text?.includes('<think>')) {
+                result.text = `<think>${result.text}`
+              }
 
-                return result
-              },
-              wrapStream: async ({ doStream }) => {
-                const { stream, ...rest } = await doStream()
-
-                let generatedText = ''
-                const transformStream = new TransformStream<LanguageModelV1StreamPart, LanguageModelV1StreamPart>({
-                  transform(chunk, controller) {
-                    //we are manually adding the <think> tag because some times, distills of reasoning models omit it
-                    if (chunk.type === 'text-delta') {
-                      if (!generatedText.includes('<think>')) {
-                        generatedText += '<think>'
-                        controller.enqueue({
-                          type: 'text-delta',
-                          textDelta: '<think>',
-                        })
-                      }
-                      generatedText += chunk.textDelta
-                    }
-
-                    controller.enqueue(chunk)
-                  },
-                })
-
-                return {
-                  stream: stream.pipeThrough(transformStream),
-                  ...rest,
-                }
-              },
+              return result
             },
-          ],
-        })
+            wrapStream: async ({ doStream }) => {
+              const { stream, ...rest } = await doStream()
+
+              let generatedText = ''
+              const transformStream = new TransformStream<LanguageModelV1StreamPart, LanguageModelV1StreamPart>({
+                transform(chunk, controller) {
+                  //we are manually adding the <think> tag because some times, distills of reasoning models omit it
+                  if (chunk.type === 'text-delta') {
+                    if (!generatedText.includes('<think>')) {
+                      generatedText += '<think>'
+                      controller.enqueue({
+                        type: 'text-delta',
+                        textDelta: '<think>',
+                      })
+                    }
+                    generatedText += chunk.textDelta
+                  }
+
+                  controller.enqueue(chunk)
+                },
+              })
+
+              return {
+                stream: stream.pipeThrough(transformStream),
+                ...rest,
+              }
+            },
+          },
+        ],
+      })
       : workersai('@cf/meta/llama-3.3-70b-instruct-fp8-fast')
 
     const systemPrompt: message = {
@@ -82,9 +95,8 @@ app.post('/api/chat', async (c) => {
         - You must respond clearly and concisely, and explain your logic if required.
         - You must not provide any personal information.
         - Do not respond with your own personal opinions, and avoid topics unrelated to the user's prompt.
-        ${
-          messages.length <= 1 &&
-          `- Important REMINDER: You MUST provide a 5 word title at the END of your response using <chat-title> </chat-title> tags. 
+        ${messages.length <= 1 &&
+        `- Important REMINDER: You MUST provide a 5 word title at the END of your response using <chat-title> </chat-title> tags. 
           If you do not do this, this session will error.
           For example, <chat-title>Hello and Welcome</chat-title> Hi, how can I help you today?
           `
