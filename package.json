@@ -1,7 +1,7 @@
 {
   "name": "use-mcp",
   "repository": "https://github.com/modelcontextprotocol/use-mcp",
-  "version": "0.0.21",
+  "version": "0.0.22",
   "type": "module",
   "files": [
     "dist",
@@ -22,6 +22,10 @@
       "types": "./dist/react/index.d.ts",
       "require": "./dist/react/index.js",
       "import": "./dist/react/index.js"
+    },
+    "./auth/keycloak": {
+      "types": "./dist/auth/keycloak.d.ts",
+      "import": "./dist/auth/keycloak.js"
     }
   },
   "scripts": {
@@ -40,6 +44,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.13.3",
+    "keycloak-js": "^26.2.3",
     "strict-url-sanitise": "^0.0.1",
     "use-mcp": "^0.0.21"
   },
@@ -58,7 +63,8 @@
   "tsup": {
     "entry": [
       "src/index.ts",
-      "src/react/index.ts"
+      "src/react/index.ts",
+      "src/auth/keycloak.ts"
     ],
     "format": [
       "esm"

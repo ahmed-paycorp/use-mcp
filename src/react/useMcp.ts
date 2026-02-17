@@ -228,6 +228,20 @@ export function useMcp(options: UseMcpOptions): UseMcpResult {
             headers.set('mcp-session-id', currentSessionId)
           }
 
+          // Inject Authorization header if not present
+          if (!headers.has('Authorization')) {
+            try {
+              // Try to get token from Keycloak global instance
+              // @ts-ignore
+              const keycloak = (window as any).keycloak
+              if (keycloak && keycloak.token) {
+                headers.set('Authorization', `Bearer ${keycloak.token}`)
+              }
+            } catch (e) {
+              // Ignore
+            }
+          }
+
           // Handle input being a Request object or URL/string
           let requestInput = input
           let requestInit = { ...init, headers }
