@@ -218,6 +218,28 @@ export function useMcp(options: UseMcpOptions): UseMcpResult {
         // Session ID management for this connection attempt
         let currentSessionId: string | null = null
 
+        // 1. Get initial token (Use existing if available logic)
+        // @ts-ignore
+        const keycloak = (window as any).keycloak
+        let initialToken: string | undefined = keycloak?.token
+
+        // Try to update token if possible, but don't block on it hard if it fails (CORS)
+        if (keycloak) {
+          try {
+            // Only wait for update if we suspect it's stale, otherwise just fire and forget or wait short time
+            await keycloak.updateToken(30)
+            initialToken = keycloak.token
+          } catch (e) {
+            console.warn('Initial token refresh failed (using existing):', e)
+            // If we have a token (from login), use it. If not, and refresh failed, we might need login.
+            if (!initialToken) {
+              console.warn('No token available and refresh failed. Redirecting to login.')
+              keycloak.login()
+              return { state: 'failed', tools: [] } as any // Abort connection
+            }
+          }
+        }
+
         // Custom fetch to handle session ID via headers
         const customFetch: typeof fetch = async (input, init) => {
           // Prepare headers
@@ -228,18 +250,28 @@ export function useMcp(options: UseMcpOptions): UseMcpResult {
             headers.set('mcp-session-id', currentSessionId)
           }
 
-          // Inject Authorization header if not present
-          if (!headers.has('Authorization')) {
-            try {
-              // Try to get token from Keycloak global instance
-              // @ts-ignore
-              const keycloak = (window as any).keycloak
-              if (keycloak && keycloak.token) {
-                headers.set('Authorization', `Bearer ${keycloak.token}`)
+          // Strict refresh: Always ensure valid token is present (covering refresh)
+          try {
+            // @ts-ignore
+            const keycloak = (window as any).keycloak
+            if (keycloak) {
+              // Attempt to refresh token if needed
+              try {
+                await keycloak.updateToken(30)
+              } catch (e) {
+                console.warn('Token refresh failed:', e)
               }
-            } catch (e) {
-              // Ignore
+
+              if (keycloak.token) {
+                headers.set('Authorization', `Bearer ${keycloak.token}`)
+              } else {
+                // If token is missing entirely, we can't authenticate.
+                // This might trigger a 401 from server, which is fine.
+                console.warn('No token available for request')
+              }
             }
+          } catch (e) {
+            // Ignore
           }
 
           // Handle input being a Request object or URL/string
@@ -264,15 +296,17 @@ export function useMcp(options: UseMcpOptions): UseMcpResult {
           return response
         }
 
+        // 2. Prepare Transport Options with headers (Scenario A compliance)
         const commonOptions: any = {
           authProvider: authProviderRef.current,
+          fetch: customFetch,
           requestInit: {
             headers: {
-              Accept: 'application/json, text/event-stream',
+              'Accept': 'application/json, text/event-stream',
               ...customHeaders,
-            },
-          },
-          fetch: customFetch,
+              ...(initialToken ? { 'Authorization': `Bearer ${initialToken}` } : {})
+            }
+          }
         }
 
         addLog('debug', `Creating ${transportType.toUpperCase()} transport for URL: ${targetUrl.toString()}`)

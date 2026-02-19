@@ -263,8 +263,14 @@ export default {
         // @ts-ignore
         fetch: (request, env, ctx) => {
           const { pathname } = new URL(request.url)
-          if (pathname.startsWith('/sse')) return MyMCP.serveSSE('/sse').fetch(request as any, env, ctx).then(addCors)
-          if (pathname === '/mcp') return MyMCP.serve('/mcp').fetch(request as any, env, ctx).then(addCors)
+          if (pathname.startsWith('/sse'))
+            return MyMCP.serveSSE('/sse')
+              .fetch(request as any, env, ctx)
+              .then(addCors)
+          if (pathname === '/mcp')
+            return MyMCP.serve('/mcp')
+              .fetch(request as any, env, ctx)
+              .then(addCors)
           return new Response('Not found', { status: 404, headers: corsHeaders })
         },
       },
